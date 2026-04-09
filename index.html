@@ -910,12 +910,10 @@ function fitAll(){
 
 function flyTo(id){
   var el=document.getElementById(id);if(!el)return;
-  var l=parseInt(el.style.left)||DEFAULT_POS[id].x;
-  var t=parseInt(el.style.top)||DEFAULT_POS[id].y;
   var vw=cvp.clientWidth,vh=cvp.clientHeight;
   tZoom=0.9;
-  tPanX=vw/2-(l+el.offsetWidth/2)*tZoom;
-  tPanY=vh/2-(t+el.offsetHeight/2)*tZoom;
+  tPanX=vw/2-(el.offsetLeft+el.offsetWidth/2)*tZoom;
+  tPanY=vh/2-(el.offsetTop+el.offsetHeight/2)*tZoom;
   velX=0;velY=0;
   if(id==='card-g'&&sidebarOpen==='g'){openSidebar('g');}
 }
