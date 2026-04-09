@@ -433,16 +433,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font
 
     <svg id="csvg"></svg>
 
-    <!-- ZONE LABELS -->
-    <div class="zone" style="left:60px;top:460px;width:300px;height:570px">
-      <span class="zlb">01 · Identity</span>
-    </div>
-    <div class="zone" style="left:360px;top:440px;width:300px;height:600px">
-      <span class="zlb">02 · Work</span>
-    </div>
-    <div class="zone" style="left:1060px;top:200px;width:350px;height:940px">
-      <span class="zlb">03 · Depth</span>
-    </div>
 
     <!-- CARD A: IDENTITY -->
     <div class="card" id="card-a">
@@ -1037,12 +1027,14 @@ cvp.addEventListener('wheel',function(e){
 },{passive:false});
 
 // ─── TOUCH PAN + PINCH ZOOM ──────────────────────
-var touchStartX=0,touchStartY=0,touchPanStartX=0,touchPanStartY=0,lastTouchDist=0,isTouchPanning=false;
+var touchStartX=0,touchStartY=0,touchPanStartX=0,touchPanStartY=0,lastTouchDist=0,isTouchPanning=false,touchMoved=false;
 cvp.addEventListener('touchstart',function(e){
+  touchMoved=false;
   if(e.touches.length===1){
     isTouchPanning=true;
+    isPanning=true;
     touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;
-    touchPanStartX=tPanX;touchPanStartY=tPanY;
+    touchPanStartX=panX;touchPanStartY=panY;
     velX=0;velY=0;
   } else if(e.touches.length===2){
     isTouchPanning=false;
@@ -1053,28 +1045,38 @@ cvp.addEventListener('touchstart',function(e){
 },{passive:false});
 cvp.addEventListener('touchmove',function(e){
   if(e.touches.length===1&&isTouchPanning){
-    var nx=touchPanStartX+(e.touches[0].clientX-touchStartX);
-    var ny=touchPanStartY+(e.touches[0].clientY-touchStartY);
-    velX=nx-tPanX;velY=ny-tPanY;
-    tPanX=nx;tPanY=ny;
+    var dx=e.touches[0].clientX-touchStartX,dy=e.touches[0].clientY-touchStartY;
+    if(Math.abs(dx)>4||Math.abs(dy)>4)touchMoved=true;
+    var nx=touchPanStartX+dx;
+    var ny=touchPanStartY+dy;
+    velX=nx-panX;velY=ny-panY;
+    // Set both target and actual so the canvas follows finger 1:1 (no lerp lag)
+    tPanX=nx;tPanY=ny;panX=nx;panY=ny;
   } else if(e.touches.length===2){
-    var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
-    var newDist=Math.sqrt(dx*dx+dy*dy);
+    var ddx=e.touches[0].clientX-e.touches[1].clientX,ddy=e.touches[0].clientY-e.touches[1].clientY;
+    var newDist=Math.sqrt(ddx*ddx+ddy*ddy);
     if(lastTouchDist>0){
+      touchMoved=true;
       var pinchMx=(e.touches[0].clientX+e.touches[1].clientX)/2;
       var pinchMy=(e.touches[0].clientY+e.touches[1].clientY)/2;
       var rect=cvp.getBoundingClientRect();
       var mx=pinchMx-rect.left,my=pinchMy-rect.top;
       var wz=Math.max(0.3,Math.min(2,tZoom*(newDist/lastTouchDist)));
       var ratio=wz/tZoom;
-      tPanX=mx-(mx-tPanX)*ratio;tPanY=my-(my-tPanY)*ratio;tZoom=wz;
+      // Set both target and actual for instant pinch response
+      tPanX=mx-(mx-panX)*ratio;tPanY=my-(my-panY)*ratio;
+      panX=tPanX;panY=tPanY;tZoom=wz;zoom=wz;
     }
     lastTouchDist=newDist;
   }
   e.preventDefault();
 },{passive:false});
 cvp.addEventListener('touchend',function(e){
-  isTouchPanning=false;lastTouchDist=0;
+  isTouchPanning=false;isPanning=false;lastTouchDist=0;
+  // If the finger moved, suppress the upcoming click event so card sidebars don't open mid-pan
+  if(touchMoved){
+    e.preventDefault();
+  }
 },{passive:false});
 
 // ─── CONTEXT MENU ────────────────────────────────
