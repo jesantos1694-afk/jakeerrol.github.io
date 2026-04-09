@@ -272,6 +272,27 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font
   color:var(--txt2);line-height:1;white-space:nowrap;
 }
 @media(max-width:768px){#ctx-hint{display:none}}
+/* ─── MOBILE RESPONSIVE ─── */
+@media(max-width:768px){
+  .tb-resume{display:none}
+  .tb-cta{font-size:11px;padding:6px 10px}
+  .tb-rating{font-size:11px}
+  #tb-clk{display:none}
+  .tb-div{display:none}
+  #rail{width:36px}
+  #cvp{left:36px}
+  #sidebar{width:100vw;min-width:0;left:0;right:0}
+  #sb-overlay{display:none!important}
+  #mmap{display:none}
+  #kbh{display:none!important}
+  #boot-concept{max-width:92vw;padding:12px 16px}
+  .blabel{min-width:160px;max-width:180px;padding:8px 12px}
+}
+@media(max-width:480px){
+  .bb-mw{display:none}
+  .tb-lbl{display:none}
+  .tb-sep{display:none}
+}
 
 /* ─── CARD G TABS ─── */
 .ctabs{display:flex;gap:0;margin:12px 0 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0}
@@ -890,6 +911,33 @@ function zoomOutToOverview(){
   velX=0;velY=0;
 }
 
+function buildZoom(){return window.innerWidth<768?0.85:1.15;}
+
+function panToMidpoint(srcId,dstId,zl){
+  var vw=cvp.clientWidth,vh=cvp.clientHeight;
+  var dst=document.getElementById(dstId);if(!dst)return;
+  if(!srcId){
+    var z=zl||buildZoom();tZoom=z;
+    tPanX=vw/2-(dst.offsetLeft+dst.offsetWidth/2)*z;
+    tPanY=vh/2-(dst.offsetTop+dst.offsetHeight/2)*z;
+    velX=0;velY=0;return;
+  }
+  var src=document.getElementById(srcId);if(!src)return;
+  var z=window.innerWidth<768?0.65:0.75;tZoom=z;
+  var mx=(src.offsetLeft+src.offsetWidth/2+dst.offsetLeft+dst.offsetWidth/2)/2;
+  var my=(src.offsetTop+src.offsetHeight/2+dst.offsetTop+dst.offsetHeight/2)/2;
+  tPanX=vw/2-mx*z;tPanY=vh/2-my*z;velX=0;velY=0;
+}
+
+function panToMultiMidpoint(srcIds,dstId){
+  var vw=cvp.clientWidth,vh=cvp.clientHeight;
+  var dst=document.getElementById(dstId);if(!dst)return;
+  var z=window.innerWidth<768?0.55:0.65;tZoom=z;
+  var sumX=dst.offsetLeft+dst.offsetWidth/2,sumY=dst.offsetTop+dst.offsetHeight/2,count=1;
+  srcIds.forEach(function(sid){var s=document.getElementById(sid);if(s){sumX+=s.offsetLeft+s.offsetWidth/2;sumY+=s.offsetTop+s.offsetHeight/2;count++;}});
+  tPanX=vw/2-(sumX/count)*z;tPanY=vh/2-(sumY/count)*z;velX=0;velY=0;
+}
+
 function fitAll(){
   var minX=9999,minY=9999,maxX=0,maxY=0;
   CARDS.forEach(function(id){
@@ -987,6 +1035,47 @@ cvp.addEventListener('wheel',function(e){
   tPanX=mx-(mx-tPanX)*ratio;
   tPanY=my-(my-tPanY)*ratio;
   tZoom=wz;
+},{passive:false});
+
+// ─── TOUCH PAN + PINCH ZOOM ──────────────────────
+var touchStartX=0,touchStartY=0,touchPanStartX=0,touchPanStartY=0,lastTouchDist=0,isTouchPanning=false;
+cvp.addEventListener('touchstart',function(e){
+  if(e.touches.length===1){
+    isTouchPanning=true;
+    touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;
+    touchPanStartX=tPanX;touchPanStartY=tPanY;
+    velX=0;velY=0;
+  } else if(e.touches.length===2){
+    isTouchPanning=false;
+    var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
+    lastTouchDist=Math.sqrt(dx*dx+dy*dy);
+  }
+  e.preventDefault();
+},{passive:false});
+cvp.addEventListener('touchmove',function(e){
+  if(e.touches.length===1&&isTouchPanning){
+    var nx=touchPanStartX+(e.touches[0].clientX-touchStartX);
+    var ny=touchPanStartY+(e.touches[0].clientY-touchStartY);
+    velX=nx-tPanX;velY=ny-tPanY;
+    tPanX=nx;tPanY=ny;
+  } else if(e.touches.length===2){
+    var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
+    var newDist=Math.sqrt(dx*dx+dy*dy);
+    if(lastTouchDist>0){
+      var pinchMx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      var pinchMy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      var rect=cvp.getBoundingClientRect();
+      var mx=pinchMx-rect.left,my=pinchMy-rect.top;
+      var wz=Math.max(0.3,Math.min(2,tZoom*(newDist/lastTouchDist)));
+      var ratio=wz/tZoom;
+      tPanX=mx-(mx-tPanX)*ratio;tPanY=my-(my-tPanY)*ratio;tZoom=wz;
+    }
+    lastTouchDist=newDist;
+  }
+  e.preventDefault();
+},{passive:false});
+cvp.addEventListener('touchend',function(e){
+  isTouchPanning=false;lastTouchDist=0;
 },{passive:false});
 
 // ─── CONTEXT MENU ────────────────────────────────
@@ -1541,7 +1630,8 @@ var BUILD_SEQ=[
   {id:'card-e',stage:'DELIVER',color:'#991B1B',desc:'60+ systems shipped \u2014 results packaged and surfaced.',fx:doOutboundArrow},
   {id:'card-g',stage:'OUTPUT',color:'#475569',desc:'Workflow complete. If this is what you need \u2014 book the call.',fx:doSuccessPulse}
 ];
-var BUILD_T=[0,3200,6400,9600,12800,16000];
+var BUILD_T=[0,4800,9600,14400,19200,24000];
+var CONN_SRC={'ab':'card-a','ac':'card-a','bd':'card-b','be':'card-b','ag':'card-a','bg':'card-b','cg':'card-c','fa':'card-f'};
 
 function showBuildTip(msg,delay){
   setTimeout(function(){
@@ -1571,38 +1661,67 @@ function runBuildSteps(){
   buildSequenceActive=true;
   BUILD_SEQ.forEach(function(step,i){
     setTimeout(function(){
-      // Zoom IN to this card as it reveals
-      panToCard(step.id,1.15);
-      revealCard(step.id,function(){
-        // After card settles: fire fx + label
-        if(step.fx)step.fx(step.id);
-        createBuildLabel(step.id,step.stage,step.color,step.desc);
-        // Activate incoming connections with slow flowing draw-in
-        var conns=CARD_CONNS[step.id]||[];
-        var gap=step.id==='card-g'?500:200; // stagger 3 converging lines more
-        conns.forEach(function(cid,ci){
-          setTimeout(function(){ activateConn(cid,900); },ci*gap);
+      var conns=CARD_CONNS[step.id]||[];
+      var isLast=(i===BUILD_SEQ.length-1);
+      if(conns.length===0){
+        // No incoming line (card-a): pan directly to card then reveal
+        panToCard(step.id,buildZoom());
+        revealCard(step.id,function(){
+          if(step.fx)step.fx(step.id);
+          createBuildLabel(step.id,step.stage,step.color,step.desc);
+          if(!isLast)setTimeout(function(){zoomOutToOverview();},1800);
         });
-        // Zoom back out to overview after dwell (unless last card)
-        var isLast=(i===BUILD_SEQ.length-1);
-        if(!isLast){
-          setTimeout(function(){zoomOutToOverview();},1600);
-        }
-      });
+      } else if(conns.length===1){
+        // Single incoming line: pan to midpoint → draw line → zoom to card → reveal
+        var srcId=CONN_SRC[conns[0]];
+        panToMidpoint(srcId,step.id);
+        setTimeout(function(){
+          activateConn(conns[0],1200);
+          setTimeout(function(){
+            panToCard(step.id,buildZoom());
+            revealCard(step.id,function(){
+              if(step.fx)step.fx(step.id);
+              createBuildLabel(step.id,step.stage,step.color,step.desc);
+              if(!isLast)setTimeout(function(){zoomOutToOverview();},1800);
+            });
+          },1400);
+        },600);
+      } else {
+        // Multiple incoming lines (card-g): pan to group midpoint → draw lines staggered → reveal
+        var srcIds=conns.map(function(c){return CONN_SRC[c];});
+        panToMultiMidpoint(srcIds,step.id);
+        var lineGap=500;
+        conns.forEach(function(cid,ci){
+          setTimeout(function(){activateConn(cid,1200);},600+ci*lineGap);
+        });
+        var allDone=600+conns.length*lineGap+400;
+        setTimeout(function(){
+          panToCard(step.id,buildZoom());
+          revealCard(step.id,function(){
+            if(step.fx)step.fx(step.id);
+            createBuildLabel(step.id,step.stage,step.color,step.desc);
+            if(!isLast)setTimeout(function(){zoomOutToOverview();},1800);
+          });
+        },allDone);
+      }
     },BUILD_T[i]);
   });
-  // card-f + fa connection after last card
+  // card-f: pan to midpoint card-f→card-a, draw fa line, then reveal card-f
   setTimeout(function(){
-    zoomOutToOverview();
-    revealCard('card-f');
-    setTimeout(function(){activateConn('fa',900);},400);
-  },17400);
+    panToMidpoint('card-a','card-f');
+    setTimeout(function(){
+      activateConn('fa',1000);
+      setTimeout(function(){
+        panToCard('card-f',buildZoom());
+        revealCard('card-f');
+      },1200);
+    },600);
+  },29000);
   // Labels settle to subtle resting state — stay on canvas as back layer
   setTimeout(function(){
     buildLabels.forEach(function(lab){
       lab.style.opacity='0.45';
       lab.classList.add('resting');
-      // Dim the stage color to muted
       var stageEl=lab.querySelector('.blabel-stage');
       if(stageEl)stageEl.style.color='var(--muted)';
       var descEl=lab.querySelector('.blabel-desc');
@@ -1622,7 +1741,7 @@ function runBuildSteps(){
     setTimeout(function(){
       if(!sessionStorage.getItem('jes_v4_tooltip_shown'))showWelcomeTooltip();
     },17000);
-  },18800);
+  },32500);
 }
 
 function runWorkflowBoot(){
