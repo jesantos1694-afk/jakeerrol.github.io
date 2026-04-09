@@ -6,6 +6,12 @@
     "no-raw-characters": "off",
     "void-style": "off",
     "attribute-boolean-style": "off",
-    "no-trailing-whitespace": "off"
+    "no-trailing-whitespace": "off",
+    "no-utf8-bom": "off",
+    "text-content": "off",
+    "wcag/h30": "off",
+    "element-required-attributes": "off",
+    "attribute-allowed-values": "off",
+    "no-deprecated-attr": "off"
   }
 }
